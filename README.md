@@ -26,6 +26,15 @@ make run-api
 
 Override `DATABASE_URL` when a different local connection is needed.
 
+In another terminal, install and start the frontend:
+
+```sh
+make frontend-install
+make run-frontend
+```
+
+Open `http://localhost:3000` to create a workspace from the UI. The development server proxies `/v1` requests to the API on port `8080`.
+
 The API listens on `http://localhost:8080`. Create a workspace by selecting the supported Sepolia network:
 
 ```sh
