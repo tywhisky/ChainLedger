@@ -49,6 +49,29 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+func TestAPIDocumentation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewHandler(nil)
+
+	specResponse := httptest.NewRecorder()
+	router.ServeHTTP(specResponse, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
+	if specResponse.Code != http.StatusOK {
+		t.Fatalf("spec status = %d, want %d", specResponse.Code, http.StatusOK)
+	}
+	if !strings.Contains(specResponse.Body.String(), "openapi: 3.1.0") {
+		t.Fatalf("spec does not contain the OpenAPI version")
+	}
+
+	docsResponse := httptest.NewRecorder()
+	router.ServeHTTP(docsResponse, httptest.NewRequest(http.MethodGet, "/docs/", nil))
+	if docsResponse.Code != http.StatusOK {
+		t.Fatalf("docs status = %d, want %d", docsResponse.Code, http.StatusOK)
+	}
+	if !strings.Contains(docsResponse.Body.String(), "ChainLedger API") {
+		t.Fatalf("docs do not contain the API title")
+	}
+}
+
 func TestCreateWorkspace(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := &fakeWorkspaceStore{created: workspace.Workspace{

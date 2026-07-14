@@ -45,6 +45,8 @@ curl -X POST http://localhost:8080/v1/workspaces \
   -d '{"name":"My Workspace","network_id":"sepolia"}'
 ```
 
+Interactive API documentation is available at `http://localhost:8080/docs/`. The source contract is served from `http://localhost:8080/openapi.yaml`.
+
 The other backend processes still have independent entry points:
 
 ```sh

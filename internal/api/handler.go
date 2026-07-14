@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"chainledger/internal/workspace"
+	"chainledger/openapi"
 	"github.com/gin-gonic/gin"
+	"github.com/swaggest/swgui/v5emb"
 )
 
 type workspaceStore interface {
@@ -23,6 +25,11 @@ func NewHandler(workspaces workspaceStore) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.GET("/healthz", health)
+	router.GET("/openapi.yaml", openAPISpec)
+	router.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusTemporaryRedirect, "/docs/")
+	})
+	router.Any("/docs/*path", gin.WrapH(v5emb.New("ChainLedger API", "/openapi.yaml", "/docs/")))
 
 	h := handler{workspaces: workspaces}
 	v1 := router.Group("/v1")
@@ -33,6 +40,10 @@ func NewHandler(workspaces workspaceStore) *gin.Engine {
 
 func health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func openAPISpec(c *gin.Context) {
+	c.Data(http.StatusOK, "application/yaml; charset=utf-8", openapi.Spec)
 }
 
 func (h handler) listNetworks(c *gin.Context) {

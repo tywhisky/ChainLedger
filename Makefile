@@ -1,7 +1,7 @@
 .PHONY: build test check run-api run-indexer run-worker frontend-install run-frontend frontend-build db-create migrate
 
 DATABASE_URL ?= postgres://postgres:postgres@localhost:5432/chainledger?sslmode=disable
-GO_PACKAGES = ./cmd/... ./internal/...
+GO_PACKAGES = ./cmd/... ./internal/... ./openapi
 
 build:
 	go build $(GO_PACKAGES)
