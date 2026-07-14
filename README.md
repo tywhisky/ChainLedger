@@ -7,24 +7,43 @@ The backend uses Gin for HTTP routing while keeping the API, indexer, and worker
 ## Requirements
 
 - Go 1.26+
+- PostgreSQL and its `psql` command-line client
 
 ## Run locally
 
-Each backend process has an independent entry point:
+With PostgreSQL running on its default port and the local `postgres` user using password `postgres`, create the project database once and apply the migration:
+
+```sh
+make db-create
+make migrate
+```
+
+Start the API. The Makefile uses `postgres://postgres:postgres@localhost:5432/chainledger` by default:
 
 ```sh
 make run-api
+```
+
+Override `DATABASE_URL` when a different local connection is needed.
+
+The API listens on `http://localhost:8080`. Create a workspace by selecting the supported Sepolia network:
+
+```sh
+curl http://localhost:8080/v1/networks
+
+curl -X POST http://localhost:8080/v1/workspaces \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"My Workspace","network_id":"sepolia"}'
+```
+
+The other backend processes still have independent entry points:
+
+```sh
 make run-indexer
 make run-worker
 ```
 
-The API listens on `http://localhost:8080` by default. Its current health endpoint is:
-
-```sh
-curl http://localhost:8080/healthz
-```
-
-Run all backend quality checks with:
+Run all backend checks with:
 
 ```sh
 make check

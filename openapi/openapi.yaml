@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: ChainLedger API
+  version: 0.1.0
+paths:
+  /v1/networks:
+    get:
+      summary: List supported EVM networks
+      responses:
+        "200":
+          description: Supported networks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Network"
+  /v1/workspaces:
+    post:
+      summary: Create a workspace on an EVM network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, network_id]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                network_id:
+                  type: string
+      responses:
+        "201":
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Workspace"
+        "400":
+          description: Invalid request or unsupported network
+components:
+  schemas:
+    Network:
+      type: object
+      required: [id, name, chain_id, native_symbol, is_testnet]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        chain_id:
+          type: integer
+          format: int64
+        native_symbol:
+          type: string
+        is_testnet:
+          type: boolean
+    Workspace:
+      type: object
+      required: [id, name, network, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        network:
+          $ref: "#/components/schemas/Network"
+        created_at:
+          type: string
+          format: date-time
