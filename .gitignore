@@ -1,0 +1,31 @@
+# Go build and test output
+/bin/
+*.exe
+*.test
+*.out
+*.prof
+coverage.*
+/vendor/
+go.work
+go.work.sum
+
+# Frontend dependencies and output
+/frontend/node_modules/
+/frontend/dist/
+/frontend/coverage/
+
+# Local configuration and runtime files
+.env
+.env.*
+!.env.example
+*.log
+/tmp/
+
+# Local planning document
+/roadmap.md
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
