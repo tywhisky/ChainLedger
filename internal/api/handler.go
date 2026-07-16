@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"strings"
@@ -21,9 +22,11 @@ type handler struct {
 	workspaces workspaceStore
 }
 
+const requestIDKey = "request_id"
+
 func NewHandler(workspaces workspaceStore) *gin.Engine {
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(requestID, gin.Recovery())
 	router.GET("/healthz", health)
 	router.GET("/openapi.yaml", openAPISpec)
 	router.GET("/docs", func(c *gin.Context) {
@@ -36,6 +39,13 @@ func NewHandler(workspaces workspaceStore) *gin.Engine {
 	v1.GET("/networks", h.listNetworks)
 	v1.POST("/workspaces", h.createWorkspace)
 	return router
+}
+
+func requestID(c *gin.Context) {
+	id := rand.Text()
+	c.Set(requestIDKey, id)
+	c.Header("X-Request-ID", id)
+	c.Next()
 }
 
 func health(c *gin.Context) {
@@ -87,5 +97,8 @@ func (h handler) createWorkspace(c *gin.Context) {
 }
 
 func respondError(c *gin.Context, status int, code, message string) {
-	c.JSON(status, gin.H{"error": gin.H{"code": code, "message": message}})
+	c.JSON(status, gin.H{
+		"error":      gin.H{"code": code, "message": message},
+		"request_id": c.GetString(requestIDKey),
+	})
 }

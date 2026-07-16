@@ -46,6 +46,7 @@ curl -X POST http://localhost:8080/v1/workspaces \
 ```
 
 Interactive API documentation is available at `http://localhost:8080/docs/`. The source contract is served from `http://localhost:8080/openapi.yaml`.
+Every API response includes an `X-Request-ID` header; error responses repeat it as `request_id` for diagnostics.
 
 The other backend processes still have independent entry points:
 

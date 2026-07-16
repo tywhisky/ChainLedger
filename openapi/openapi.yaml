@@ -9,6 +9,9 @@ paths:
       responses:
         "200":
           description: Supported networks
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
           content:
             application/json:
               schema:
@@ -19,6 +22,8 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Network"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/workspaces:
     post:
       summary: Create a workspace on an EVM network
@@ -39,6 +44,9 @@ paths:
       responses:
         "201":
           description: Workspace created
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
           content:
             application/json:
               schema:
@@ -49,8 +57,46 @@ paths:
                     $ref: "#/components/schemas/Workspace"
         "400":
           description: Invalid request or unsupported network
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
 components:
+  headers:
+    RequestID:
+      description: Identifier for correlating this request with server diagnostics
+      schema:
+        type: string
+  responses:
+    InternalError:
+      description: Internal server error
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    ErrorResponse:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        request_id:
+          type: string
     Network:
       type: object
       required: [id, name, chain_id, native_symbol, is_testnet]

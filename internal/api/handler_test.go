@@ -40,12 +40,37 @@ func TestHealth(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
+	if response.Header().Get("X-Request-ID") == "" {
+		t.Fatal("X-Request-ID header is empty")
+	}
 	var body map[string]string
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
 	if got := body["status"]; got != "ok" {
 		t.Fatalf("status body = %q, want %q", got, "ok")
+	}
+}
+
+func TestErrorIncludesRequestID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	request := httptest.NewRequest(http.MethodPost, "/v1/workspaces", strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	NewHandler(nil).ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+	var body struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.RequestID == "" || body.RequestID != response.Header().Get("X-Request-ID") {
+		t.Fatalf("request_id = %q, header = %q", body.RequestID, response.Header().Get("X-Request-ID"))
 	}
 }
 
@@ -60,6 +85,9 @@ func TestAPIDocumentation(t *testing.T) {
 	}
 	if !strings.Contains(specResponse.Body.String(), "openapi: 3.1.0") {
 		t.Fatalf("spec does not contain the OpenAPI version")
+	}
+	if !strings.Contains(specResponse.Body.String(), "X-Request-ID") {
+		t.Fatalf("spec does not contain the request ID contract")
 	}
 
 	docsResponse := httptest.NewRecorder()
