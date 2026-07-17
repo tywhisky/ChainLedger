@@ -55,7 +55,7 @@ make run-indexer
 make run-worker
 ```
 
-Run all backend checks with:
+Run all backend che cks with:
 
 ```sh
 make check
