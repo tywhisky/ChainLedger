@@ -17,6 +17,18 @@ go.work.sum
 /frontend/.vinext/
 /frontend/.wrangler/
 
+# Solidity dependencies and generated output
+/.deps/
+/node_modules/
+/artifacts/
+/cache/
+/out/
+/broadcast/
+/coverage/
+/coverage.json
+/typechain/
+/typechain-types/
+
 # Local configuration and runtime files
 .env
 .env.*
