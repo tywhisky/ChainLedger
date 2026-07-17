@@ -7,9 +7,27 @@ contract FreelaceEscrow {
     address public immutable seller; 
     address public immutable arbiter;
 
-    constructor(address _seller, address _arbiter) {
+    uint256 public immutable deliveryDeadline;
+    uint256 public immutable reviewPeriod;
+    uint256 public immutable arbitrationPeriod;
+
+    constructor(address _seller, 
+                address _arbiter, 
+                uint _deliveryDeadline, 
+                uint _reviewPeriod, 
+                uint _arbitrationPeriod) {
+        require(_seller != address(0), "Not valid address of seller.");
+        require(_arbiter != address(0), "Not valid address of arbiter.");
+        require(msg.sender != _seller && _seller != _arbiter && _arbiter != msg.sender);
+        require(_deliveryDeadline <= block.timestamp);
+        require(_reviewPeriod != 0);
+        require(_arbitrationPeriod != 0);
+
         buyer = msg.sender;
         seller = _seller;
         arbiter = _arbiter; 
+        deliveryDeadline = _deliveryDeadline;
+        reviewPeriod = _reviewPeriod;
+        arbitrationPeriod = _arbitrationPeriod;
     }
 }
