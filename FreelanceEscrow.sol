@@ -45,4 +45,27 @@ contract FreelanceEscrow {
         arbitrationPeriod = _arbitrationPeriod;
         depositAmount = msg.value;
     }
+
+    function cancelBySeller() external onlySeller inState(State.Funded) {
+        state = State.Cancelled;
+        (bool success, ) = payable(buyer).call {value: depositAmount}("");
+        if (!success) revert TransferFailed();
+    }
+
+    modifier onlyBuyer() {
+        require(msg.sender == buyer, "Not buyer");
+        _;
+    }
+
+    modifier onlySeller() {
+        require(msg.sender == seller, "Not seller");
+        _;
+    }
+
+    modifier inState(State _state) {
+        require(state == _state, "The invalid state for current contract");
+        _;
+    }
+
+    error TransferFailed();
 }
