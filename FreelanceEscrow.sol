@@ -18,11 +18,13 @@ contract FreelanceEscrow {
 
     uint256 public immutable deliveryDeadline;
     uint256 public deliveryAt;
+    uint256 public reviewDeadline;
     uint256 public disputedAt;
+    uint256 public arbitrationDeadline;
     uint256 public immutable reviewPeriod;
     uint256 public immutable arbitrationPeriod;
 
-    map public pendingWithdrawals;
+    mapping(address => uint256) public pendingWithdrawals;
 
     uint256 public immutable depositAmount;
 
@@ -56,8 +58,9 @@ contract FreelanceEscrow {
     }
 
     function markDelivered() external onlySeller inState(State.Funded) {
-        require(block.timestamp <= deliveryDeadline, "Escrow expired");
+        require(block.timestamp < deliveryDeadline, "Escrow expired");
         deliveryAt = block.timestamp;
+        reviewDeadline = deliveryAt + reviewPeriod;
         state = State.Delivered;
     }
 
@@ -67,13 +70,14 @@ contract FreelanceEscrow {
     }
 
     function openDispute() external onlyBuyer inState(State.Delivered) {
-        require(block.timestamp <= deliveryAt + reviewPeriod);
-        state = State.Disputed;
+        require(block.timestamp < reviewDeadline);
         disputedAt = block.timestamp;
+        arbitrationDeadline = disputedAt + arbitrationPeriod;
+        state = State.Disputed;
     }
 
     function resolveDispute(bool releaseToSeller) external onlyArbiter inState(State.Disputed) {
-        require(block.timestamp <= disputedAt + arbitrationPeriod, "Expired for disputing");
+        require(block.timestamp < arbitrationDeadline, "Expired for disputing");
         if (releaseToSeller) {
             state = State.Completed;
             pendingWithdrawals[seller] += depositAmount;
@@ -90,20 +94,22 @@ contract FreelanceEscrow {
     }
 
     function claimAfterReviewTimeout() external onlySeller inState(State.Delivered) {
-        require(block.timestamp >= deliveryAt + reviewPeriod, "Expired for reviewing");
+        require(block.timestamp >= reviewDeadline, "Expired for reviewing");
         state = State.Completed;
         pendingWithdrawals[seller] += depositAmount;
     }
 
     function refundAfterArbitrationTimeout() external inState(State.Disputed) {
-        require(block.timestamp >= disputedAt + arbitrationPeriod, "Expired for arbitration");
+        require(block.timestamp >= arbitrationDeadline, "Expired for arbitration");
         state = State.Refunded;
         pendingWithdrawals[buyer] += depositAmount;
     }
 
-    function withdraw() external sellerOrBuyer {
-        require(pendingWithdrawals[msg.sender] > 0);
-        (bool success, ) = payable(msg.sender).call {value: pendingWithdrawals[msg.sender]}("");
+    function withdraw() external sellerOrBuyer nonReentrant{
+        uint256 amount = pendingWithdrawals[msg.sender];
+        require(amount > 0);
+        pendingWithdrawals[msg.sender] = 0;
+        (bool success, ) = payable(msg.sender).call {value: amount}("");
         if (!success) revert TransferFailed();
     }
 
@@ -132,5 +138,15 @@ contract FreelanceEscrow {
         _;
     }
 
+    bool private _entered;
+    modifier nonReentrant() {
+        if (_entered) revert Reentrancy();
+
+        _entered = true;
+        _;
+        _entered = false;
+    }
+
+    error Reentrancy();
     error TransferFailed();
 }
