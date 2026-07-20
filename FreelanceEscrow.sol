@@ -114,6 +114,14 @@ contract FreelanceEscrow {
         emit EscrowCreated(buyer, seller, arbiter, depositAmount, deliveryDeadline);
     }
 
+    receive() external payable {
+        revert DirectPaymentNotAllowed();
+    }
+
+    fallback() external payable {
+        revert DirectPaymentNotAllowed();
+    }
+
     function cancelBySeller() external onlySeller inState(State.Funded) {
         state = State.Cancelled;
         pendingWithdrawals[buyer] += depositAmount;
@@ -256,4 +264,5 @@ contract FreelanceEscrow {
     error NothingToWithdraw(address account);
     error Unauthorized(address caller);
     error InvalidState(State current, State expected);
+    error DirectPaymentNotAllowed();
 }
