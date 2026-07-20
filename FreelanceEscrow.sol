@@ -11,6 +11,60 @@ enum State {
     Cancelled
 }
 
+event EscrowCreated(
+    address indexed buyer,
+    address indexed seller,
+    address indexed arbiter,
+    uint256 amount,
+    uint256 deliveryDeadline
+);
+
+event DeliveryMarked(
+    address indexed seller,
+    uint256 deliveryAt,
+    uint256 reviewDeadline
+);
+
+event DeliveryApproved(
+    address indexed buyer,
+    address indexed seller,
+    uint256 amount
+);
+
+event ReviewTimeoutClaimed(
+    address indexed seller,
+    uint256 amount
+);
+
+event DisputeOpened(
+    address indexed buyer,
+    uint256 disputedAt,
+    uint256 arbitrationDeadline
+);
+
+event DisputeResolved(
+    address indexed arbiter,
+    address indexed recipient,
+    uint256 amount,
+    bool releasedToSeller
+);
+
+event EscrowCancelled(
+    address indexed seller,
+    address indexed buyer,
+    uint256 amount
+);
+
+event EscrowRefunded(
+    address indexed buyer,
+    uint256 amount
+);
+
+event Withdrawal(
+    address indexed account,
+    uint256 amount
+);
+
 contract FreelanceEscrow {
     address public immutable buyer;
     address public immutable seller; 
@@ -56,11 +110,14 @@ contract FreelanceEscrow {
         reviewPeriod = _reviewPeriod;
         arbitrationPeriod = _arbitrationPeriod;
         depositAmount = msg.value;
+
+        emit EscrowCreated(buyer, seller, arbiter, depositAmount, deliveryDeadline);
     }
 
     function cancelBySeller() external onlySeller inState(State.Funded) {
         state = State.Cancelled;
         pendingWithdrawals[buyer] += depositAmount;
+        emit EscrowCancelled(seller, buyer, depositAmount);
     }
 
     function markDelivered() external onlySeller inState(State.Funded) {
@@ -71,11 +128,15 @@ contract FreelanceEscrow {
         deliveryAt = block.timestamp;
         reviewDeadline = deliveryAt + reviewPeriod;
         state = State.Delivered;
+
+        emit DeliveryMarked(seller, deliveryAt, reviewDeadline);
     }
 
     function approveDelivery() external onlyBuyer inState(State.Delivered) {
         state = State.Completed;
         pendingWithdrawals[seller] += depositAmount;
+
+        emit DeliveryApproved(buyer, seller, depositAmount);
     }
 
     function openDispute() external onlyBuyer inState(State.Delivered) {
@@ -86,6 +147,7 @@ contract FreelanceEscrow {
         disputedAt = block.timestamp;
         arbitrationDeadline = disputedAt + arbitrationPeriod;
         state = State.Disputed;
+        emit DisputeOpened(buyer, disputedAt, arbitrationDeadline);
     }
 
     function resolveDispute(bool releaseToSeller) external onlyArbiter inState(State.Disputed) {
@@ -96,9 +158,12 @@ contract FreelanceEscrow {
         if (releaseToSeller) {
             state = State.Completed;
             pendingWithdrawals[seller] += depositAmount;
+            emit DisputeResolved(arbiter, seller, depositAmount, releaseToSeller);
         } else {
             state = State.Refunded; 
             pendingWithdrawals[buyer] += depositAmount;
+            emit DisputeResolved(arbiter, buyer, depositAmount, releaseToSeller);
+            emit EscrowRefunded(buyer, depositAmount);
         }
     }
 
@@ -109,6 +174,7 @@ contract FreelanceEscrow {
         );
         state = State.Refunded;
         pendingWithdrawals[buyer] += depositAmount;
+        emit EscrowRefunded(buyer, depositAmount);
     }
 
     function claimAfterReviewTimeout() external onlySeller inState(State.Delivered) {
@@ -118,6 +184,7 @@ contract FreelanceEscrow {
         );
         state = State.Completed;
         pendingWithdrawals[seller] += depositAmount;
+        emit ReviewTimeoutClaimed(seller, depositAmount);
     }
 
     function refundAfterArbitrationTimeout() external inState(State.Disputed) {
@@ -127,6 +194,7 @@ contract FreelanceEscrow {
         );
         state = State.Refunded;
         pendingWithdrawals[buyer] += depositAmount;
+        emit EscrowRefunded(buyer, depositAmount);
     }
 
     function withdraw() external sellerOrBuyer nonReentrant{
@@ -135,6 +203,7 @@ contract FreelanceEscrow {
         pendingWithdrawals[msg.sender] = 0;
         (bool success, ) = payable(msg.sender).call {value: amount}("");
         if (!success) revert TransferFailed(msg.sender, amount);
+        emit Withdrawal(msg.sender, amount);
     }
 
     modifier onlyBuyer() {
