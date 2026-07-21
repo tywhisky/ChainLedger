@@ -1,0 +1,13 @@
+{
+  "name": "chain-ledger",
+  "private": true,
+  "scripts": {
+    "compile": "solcjs --base-path . --include-path node_modules --bin --abi FreelanceEscrow.sol LearningERC20.sol ERC20FreelanceEscrow.sol ERC20FreelanceEscrowCheck.sol -o artifacts"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.5.0"
+  },
+  "devDependencies": {
+    "solc": "0.8.27"
+  }
+}

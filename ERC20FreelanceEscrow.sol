@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-interface IERC20 {
-    function balanceOf(address account) external view returns (uint256);
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-    function transfer(address to, uint256 amount) external returns (bool);
+contract ERC20FreelanceEscrow is ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
-}
-
-contract ERC20FreelanceEscrow {
     enum State {
         Unfunded,
         Funded,
@@ -145,15 +139,7 @@ contract ERC20FreelanceEscrow {
 
     function fund() external onlyBuyer inState(State.Unfunded) nonReentrant {
         uint256 balanceBefore = token.balanceOf(address(this));
-        bool success = token.transferFrom(buyer, address(this), depositAmount);
-        if (!success) {
-            revert TokenTransferFailed(
-                address(token),
-                buyer,
-                address(this),
-                depositAmount
-            );
-        }
+        token.safeTransferFrom(buyer, address(this), depositAmount);
 
         uint256 received = token.balanceOf(address(this)) - balanceBefore;
         if (received != depositAmount) {
@@ -271,15 +257,7 @@ contract ERC20FreelanceEscrow {
         require(amount > 0, NothingToWithdraw(msg.sender));
 
         pendingWithdrawals[msg.sender] = 0;
-        bool success = token.transfer(msg.sender, amount);
-        if (!success) {
-            revert TokenTransferFailed(
-                address(token),
-                address(this),
-                msg.sender,
-                amount
-            );
-        }
+        token.safeTransfer(msg.sender, amount);
 
         emit Withdrawal(msg.sender, address(token), amount);
     }
@@ -312,16 +290,6 @@ contract ERC20FreelanceEscrow {
         _;
     }
 
-    bool private _entered;
-
-    modifier nonReentrant() {
-        if (_entered) revert Reentrancy();
-        _entered = true;
-        _;
-        _entered = false;
-    }
-
-    error Reentrancy();
     error InvalidToken(address token);
     error InvalidSellerAddress();
     error InvalidArbiterAddress();
@@ -335,12 +303,6 @@ contract ERC20FreelanceEscrow {
     error DeadlinePassed(uint256 currentTime, uint256 deadline);
     error DeadlineNotReached(uint256 currentTime, uint256 deadline);
     error NothingToWithdraw(address account);
-    error TokenTransferFailed(
-        address token,
-        address from,
-        address to,
-        uint256 amount
-    );
     error IncorrectAmountReceived(uint256 expected, uint256 received);
     error DirectPaymentNotAllowed();
 }

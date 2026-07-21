@@ -2,6 +2,8 @@
 // compiler version must be greater than or equal to 0.8.27 and less than 0.9.0
 pragma solidity ^0.8.27;
 
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 enum State {
     Funded,
     Delivered,
@@ -65,7 +67,7 @@ event Withdrawal(
     uint256 amount
 );
 
-contract FreelanceEscrow {
+contract FreelanceEscrow is ReentrancyGuard {
     address public immutable buyer;
     address public immutable seller; 
     address public immutable arbiter;
@@ -242,16 +244,6 @@ contract FreelanceEscrow {
         _;
     }
 
-    bool private _entered;
-    modifier nonReentrant() {
-        if (_entered) revert Reentrancy();
-
-        _entered = true;
-        _;
-        _entered = false;
-    }
-
-    error Reentrancy();
     error TransferFailed(address recipient, uint256 amount);
     error InvalidSellerAddress();
     error InvalidArbiterAddress();
