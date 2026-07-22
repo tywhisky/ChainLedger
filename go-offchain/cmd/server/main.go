@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"chainledger/go-offchain/internal/chain"
 )
 
@@ -31,6 +33,10 @@ const swaggerUI = `<!doctype html>
 </html>`
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	rpcURL := env("RPC_URL", "http://127.0.0.1:8545")
 	client := chain.NewClient(rpcURL, &http.Client{Timeout: 8 * time.Second})
 
