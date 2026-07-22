@@ -37,13 +37,13 @@
 
 目标：从空目录亲手得到一个可编译、可测试的 Hardhat 3 项目。
 
-- [ ] 安装 Node.js `>= 22.13.0` 与 pnpm。
-- [ ] 在当前目录运行 `pnpm dlx hardhat --init --template node-test-runner-viem`。
-- [ ] 运行 `pnpm hardhat --help`、`pnpm hardhat compile`、`pnpm hardhat test`。
-- [ ] 读懂生成的 `hardhat.config.ts`、Solidity 示例、TypeScript 测试和 Ignition module。
-- [ ] 删除 Counter 示例，但保留能证明空项目正常工作的最小配置。
-- [ ] 确认 `.gitignore` 忽略 `.env`、`artifacts/`、`cache/`、`coverage/`，但保留 lockfile。
-- [ ] 在 `package.json` 提供统一命令：`compile`、`test`、`coverage`。
+- [x] 安装 Node.js `>= 22.13.0` 与 pnpm。
+- [x] 在当前目录运行 `pnpm dlx hardhat --init --template node-test-runner-viem`。
+- [x] 运行 `pnpm hardhat --help`、`pnpm hardhat compile`、`pnpm hardhat test`。
+- [x] 读懂生成的 `hardhat.config.ts`、Solidity 示例、TypeScript 测试和 Ignition module。
+- [x] 删除 Counter 示例，但保留能证明空项目正常工作的最小配置。
+- [x] 确认 `.gitignore` 忽略 `.env`、`artifacts/`、`cache/`、`coverage/`，但保留 lockfile。
+- [x] 在 `package.json` 提供统一命令：`compile`、`test`、`coverage`。
 
 完成标准：全新 clone 后只需安装依赖即可编译和运行测试；仓库中没有密钥或生成物。
 

@@ -6,6 +6,7 @@
 
 # pnpm deploy output
 /bundle
+/.pnpm-store
 
 # Hardhat Build Artifacts
 /artifacts
