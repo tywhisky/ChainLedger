@@ -24,6 +24,8 @@ contract FreelanceEscrow is ReentrancyGuard {
 
     uint256 public deliveredAt;
     uint256 public reviewDeadline;
+    uint256 public disputedAt;
+    uint256 public arbitrationDeadline;
 
     mapping(address account => uint256 amount) public pendingWithdrawals;
 
@@ -47,6 +49,24 @@ contract FreelanceEscrow is ReentrancyGuard {
         address indexed seller,
         uint256 amount
     );
+    event EscrowCancelled(
+        address indexed seller,
+        address indexed buyer,
+        uint256 amount
+    );
+    event DisputeOpened(
+        address indexed buyer,
+        uint256 disputedAt,
+        uint256 arbitrationDeadline
+    );
+    event DisputeResolved(
+        address indexed arbiter,
+        address indexed recipient,
+        uint256 amount,
+        bool releasedToSeller
+    );
+    event EscrowRefunded(address indexed buyer, uint256 amount);
+    event ReviewTimeoutClaimed(address indexed seller, uint256 amount);
     event Withdrawal(address indexed account, uint256 amount);
 
     constructor(
@@ -114,6 +134,17 @@ contract FreelanceEscrow is ReentrancyGuard {
         emit DeliveryMarked(seller, deliveredAt, reviewDeadline);
     }
 
+    function cancelBySeller() external onlySeller inState(State.Funded) {
+        if (block.timestamp >= deliveryDeadline) {
+            revert DeadlinePassed(block.timestamp, deliveryDeadline);
+        }
+
+        state = State.Cancelled;
+        pendingWithdrawals[buyer] += depositAmount;
+
+        emit EscrowCancelled(seller, buyer, depositAmount);
+    }
+
     function approveDelivery() external onlyBuyer inState(State.Delivered) {
         if (block.timestamp >= reviewDeadline) {
             revert DeadlinePassed(block.timestamp, reviewDeadline);
@@ -123,6 +154,70 @@ contract FreelanceEscrow is ReentrancyGuard {
         pendingWithdrawals[seller] += depositAmount;
 
         emit DeliveryApproved(buyer, seller, depositAmount);
+    }
+
+    function openDispute() external onlyBuyer inState(State.Delivered) {
+        if (block.timestamp >= reviewDeadline) {
+            revert DeadlinePassed(block.timestamp, reviewDeadline);
+        }
+
+        disputedAt = block.timestamp;
+        arbitrationDeadline = disputedAt + arbitrationPeriod;
+        state = State.Disputed;
+
+        emit DisputeOpened(buyer, disputedAt, arbitrationDeadline);
+    }
+
+    function resolveDispute(
+        bool releaseToSeller
+    ) external onlyArbiter inState(State.Disputed) {
+        if (block.timestamp >= arbitrationDeadline) {
+            revert DeadlinePassed(block.timestamp, arbitrationDeadline);
+        }
+
+        address recipient = releaseToSeller ? seller : buyer;
+        state = releaseToSeller ? State.Completed : State.Refunded;
+        pendingWithdrawals[recipient] += depositAmount;
+
+        emit DisputeResolved(
+            arbiter,
+            recipient,
+            depositAmount,
+            releaseToSeller
+        );
+    }
+
+    function refundAfterDeliveryTimeout() external inState(State.Funded) {
+        if (block.timestamp < deliveryDeadline) {
+            revert DeadlineNotReached(block.timestamp, deliveryDeadline);
+        }
+
+        state = State.Refunded;
+        pendingWithdrawals[buyer] += depositAmount;
+
+        emit EscrowRefunded(buyer, depositAmount);
+    }
+
+    function claimAfterReviewTimeout() external inState(State.Delivered) {
+        if (block.timestamp < reviewDeadline) {
+            revert DeadlineNotReached(block.timestamp, reviewDeadline);
+        }
+
+        state = State.Completed;
+        pendingWithdrawals[seller] += depositAmount;
+
+        emit ReviewTimeoutClaimed(seller, depositAmount);
+    }
+
+    function refundAfterArbitrationTimeout() external inState(State.Disputed) {
+        if (block.timestamp < arbitrationDeadline) {
+            revert DeadlineNotReached(block.timestamp, arbitrationDeadline);
+        }
+
+        state = State.Refunded;
+        pendingWithdrawals[buyer] += depositAmount;
+
+        emit EscrowRefunded(buyer, depositAmount);
     }
 
     function withdraw() external nonReentrant {
@@ -144,6 +239,11 @@ contract FreelanceEscrow is ReentrancyGuard {
 
     modifier onlySeller() {
         if (msg.sender != seller) revert Unauthorized(msg.sender);
+        _;
+    }
+
+    modifier onlyArbiter() {
+        if (msg.sender != arbiter) revert Unauthorized(msg.sender);
         _;
     }
 
@@ -173,6 +273,7 @@ contract FreelanceEscrow is ReentrancyGuard {
     error Unauthorized(address caller);
     error InvalidState(State current, State expected);
     error DeadlinePassed(uint256 currentTime, uint256 deadline);
+    error DeadlineNotReached(uint256 currentTime, uint256 deadline);
     error NothingToWithdraw(address account);
     error TransferFailed(address recipient, uint256 amount);
     error DirectPaymentNotAllowed();
