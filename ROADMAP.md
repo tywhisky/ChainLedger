@@ -82,12 +82,12 @@
 
 目标：先跑通最短的真实资金路径。
 
-- [ ] 实现 Seller `markDelivered()`：记录交付与审核截止时间。
-- [ ] 实现 Buyer `approveDelivery()`：状态变为 `Completed`，只增加 Seller 待提现余额。
-- [ ] 安装并使用 OpenZeppelin `ReentrancyGuard`。
-- [ ] 实现 `withdraw()`：Checks-Effects-Interactions、低级 `call`、失败整笔 revert、成功事件。
-- [ ] 测试完整路径：部署存款 → 交付 → 确认 → 提现。
-- [ ] 测试错误调用者、错误状态、重复确认、重复提现与提款余额变化。
+- [x] 实现 Seller `markDelivered()`：记录交付与审核截止时间。
+- [x] 实现 Buyer `approveDelivery()`：状态变为 `Completed`，只增加 Seller 待提现余额。
+- [x] 安装并使用 OpenZeppelin `ReentrancyGuard`。
+- [x] 实现 `withdraw()`：Checks-Effects-Interactions、低级 `call`、失败整笔 revert、成功事件。
+- [x] 测试完整路径：部署存款 → 交付 → 确认 → 提现。
+- [x] 测试错误调用者、错误状态、重复确认、重复提现与提款余额变化。
 
 完成标准：正常路径净额正确，同一笔存款不能分配或提取两次。
 

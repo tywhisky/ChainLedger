@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { network } from "hardhat";
 import { getAddress, parseEventLogs, zeroAddress } from "viem";
 
-describe("FreelanceEscrow constructor", async function () {
+describe("FreelanceEscrow", async function () {
   const { viem, networkHelpers } = await network.create();
   const [buyer, seller, arbiter] = await viem.getWalletClients();
   const publicClient = await viem.getPublicClient();
@@ -25,6 +25,15 @@ describe("FreelanceEscrow constructor", async function () {
       REVIEW_PERIOD,
       ARBITRATION_PERIOD,
     ] as const;
+  }
+
+  async function deployEscrow() {
+    const args = await validArgs();
+    const contract = await viem.deployContract("FreelanceEscrow", args, {
+      value: DEPOSIT,
+    });
+
+    return { contract, deliveryDeadline: args[2] };
   }
 
   it("stores the funded escrow and emits EscrowCreated", async function () {
@@ -269,6 +278,166 @@ describe("FreelanceEscrow constructor", async function () {
       buyer.sendTransaction({ to: contract.address, data: "0xdeadbeef" }),
       contract,
       "DirectPaymentNotAllowed",
+    );
+  });
+
+  it("completes delivery, approval, and withdrawal", async function () {
+    const { contract } = await networkHelpers.loadFixture(deployEscrow);
+    const deliveryHash = await contract.write.markDelivered({
+      account: seller.account,
+    });
+    const deliveryReceipt = await publicClient.waitForTransactionReceipt({
+      hash: deliveryHash,
+    });
+    const deliveryBlock = await publicClient.getBlock({
+      blockNumber: deliveryReceipt.blockNumber,
+    });
+    const deliveredAt = deliveryBlock.timestamp;
+    const reviewDeadline = deliveredAt + REVIEW_PERIOD;
+    const [marked] = parseEventLogs({
+      abi: contract.abi,
+      logs: deliveryReceipt.logs,
+      eventName: "DeliveryMarked",
+    });
+
+    assert.equal(await contract.read.state(), 1);
+    assert.equal(await contract.read.deliveredAt(), deliveredAt);
+    assert.equal(await contract.read.reviewDeadline(), reviewDeadline);
+    assert.deepEqual(marked?.args, {
+      seller: getAddress(seller.account.address),
+      deliveredAt,
+      reviewDeadline,
+    });
+
+    await viem.assertions.emitWithArgs(
+      contract.write.approveDelivery({ account: buyer.account }),
+      contract,
+      "DeliveryApproved",
+      [buyer.account.address, seller.account.address, DEPOSIT],
+    );
+    assert.equal(await contract.read.state(), 3);
+    assert.equal(
+      await contract.read.pendingWithdrawals([seller.account.address]),
+      DEPOSIT,
+    );
+    assert.equal(
+      await publicClient.getBalance({ address: contract.address }),
+      DEPOSIT,
+    );
+
+    const withdrawal = contract.write.withdraw({ account: seller.account });
+    await viem.assertions.balancesHaveChanged(
+      withdrawal,
+      [
+        { address: seller.account.address, amount: DEPOSIT },
+        { address: contract.address, amount: -DEPOSIT },
+      ],
+    );
+    await viem.assertions.emitWithArgs(
+      withdrawal,
+      contract,
+      "Withdrawal",
+      [seller.account.address, DEPOSIT],
+    );
+    assert.equal(
+      await contract.read.pendingWithdrawals([seller.account.address]),
+      0n,
+    );
+    assert.equal(
+      await publicClient.getBalance({ address: contract.address }),
+      0n,
+    );
+    assert.equal(await contract.read.state(), 3);
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.withdraw({ account: seller.account }),
+      contract,
+      "NothingToWithdraw",
+      [seller.account.address],
+    );
+  });
+
+  it("only lets the seller mark delivery", async function () {
+    const { contract } = await networkHelpers.loadFixture(deployEscrow);
+
+    for (const caller of [buyer, arbiter]) {
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        contract.write.markDelivered({ account: caller.account }),
+        contract,
+        "Unauthorized",
+        [caller.account.address],
+      );
+    }
+  });
+
+  it("rejects delivery at the delivery deadline", async function () {
+    const { contract, deliveryDeadline } =
+      await networkHelpers.loadFixture(deployEscrow);
+    await networkHelpers.time.setNextBlockTimestamp(deliveryDeadline);
+
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.markDelivered({ account: seller.account }),
+      contract,
+      "DeadlinePassed",
+      [deliveryDeadline, deliveryDeadline],
+    );
+  });
+
+  it("only lets the buyer approve before the review deadline", async function () {
+    const { contract } = await networkHelpers.loadFixture(deployEscrow);
+    await contract.write.markDelivered({ account: seller.account });
+
+    for (const caller of [seller, arbiter]) {
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        contract.write.approveDelivery({ account: caller.account }),
+        contract,
+        "Unauthorized",
+        [caller.account.address],
+      );
+    }
+
+    const reviewDeadline = await contract.read.reviewDeadline();
+    await networkHelpers.time.setNextBlockTimestamp(reviewDeadline);
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.approveDelivery({ account: buyer.account }),
+      contract,
+      "DeadlinePassed",
+      [reviewDeadline, reviewDeadline],
+    );
+  });
+
+  it("rejects operations in the wrong state", async function () {
+    const { contract } = await networkHelpers.loadFixture(deployEscrow);
+
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.approveDelivery({ account: buyer.account }),
+      contract,
+      "InvalidState",
+      [0, 1],
+    );
+    await contract.write.markDelivered({ account: seller.account });
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.markDelivered({ account: seller.account }),
+      contract,
+      "InvalidState",
+      [1, 0],
+    );
+    await contract.write.approveDelivery({ account: buyer.account });
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.approveDelivery({ account: buyer.account }),
+      contract,
+      "InvalidState",
+      [3, 1],
+    );
+  });
+
+  it("rejects withdrawal before funds are allocated", async function () {
+    const { contract } = await networkHelpers.loadFixture(deployEscrow);
+
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      contract.write.withdraw({ account: buyer.account }),
+      contract,
+      "NothingToWithdraw",
+      [buyer.account.address],
     );
   });
 });

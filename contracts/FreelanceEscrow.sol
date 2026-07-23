@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-contract FreelanceEscrow {
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract FreelanceEscrow is ReentrancyGuard {
     enum State {
         Funded,
         Delivered,
@@ -20,6 +22,11 @@ contract FreelanceEscrow {
     uint256 public immutable reviewPeriod;
     uint256 public immutable arbitrationPeriod;
 
+    uint256 public deliveredAt;
+    uint256 public reviewDeadline;
+
+    mapping(address account => uint256 amount) public pendingWithdrawals;
+
     State public state = State.Funded;
 
     event EscrowCreated(
@@ -29,6 +36,18 @@ contract FreelanceEscrow {
         uint256 amount,
         uint256 deliveryDeadline
     );
+
+    event DeliveryMarked(
+        address indexed seller,
+        uint256 deliveredAt,
+        uint256 reviewDeadline
+    );
+    event DeliveryApproved(
+        address indexed buyer,
+        address indexed seller,
+        uint256 amount
+    );
+    event Withdrawal(address indexed account, uint256 amount);
 
     constructor(
         address sellerAddress,
@@ -83,6 +102,56 @@ contract FreelanceEscrow {
         );
     }
 
+    function markDelivered() external onlySeller inState(State.Funded) {
+        if (block.timestamp >= deliveryDeadline) {
+            revert DeadlinePassed(block.timestamp, deliveryDeadline);
+        }
+
+        deliveredAt = block.timestamp;
+        reviewDeadline = deliveredAt + reviewPeriod;
+        state = State.Delivered;
+
+        emit DeliveryMarked(seller, deliveredAt, reviewDeadline);
+    }
+
+    function approveDelivery() external onlyBuyer inState(State.Delivered) {
+        if (block.timestamp >= reviewDeadline) {
+            revert DeadlinePassed(block.timestamp, reviewDeadline);
+        }
+
+        state = State.Completed;
+        pendingWithdrawals[seller] += depositAmount;
+
+        emit DeliveryApproved(buyer, seller, depositAmount);
+    }
+
+    function withdraw() external nonReentrant {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        if (amount == 0) revert NothingToWithdraw(msg.sender);
+
+        pendingWithdrawals[msg.sender] = 0;
+
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        if (!success) revert TransferFailed(msg.sender, amount);
+
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    modifier onlyBuyer() {
+        if (msg.sender != buyer) revert Unauthorized(msg.sender);
+        _;
+    }
+
+    modifier onlySeller() {
+        if (msg.sender != seller) revert Unauthorized(msg.sender);
+        _;
+    }
+
+    modifier inState(State expectedState) {
+        if (state != expectedState) revert InvalidState(state, expectedState);
+        _;
+    }
+
     receive() external payable {
         revert DirectPaymentNotAllowed();
     }
@@ -101,5 +170,10 @@ contract FreelanceEscrow {
     error InvalidDeliveryDeadline(uint256 currentTime, uint256 deadline);
     error InvalidReviewPeriod();
     error InvalidArbitrationPeriod();
+    error Unauthorized(address caller);
+    error InvalidState(State current, State expected);
+    error DeadlinePassed(uint256 currentTime, uint256 deadline);
+    error NothingToWithdraw(address account);
+    error TransferFailed(address recipient, uint256 amount);
     error DirectPaymentNotAllowed();
 }
