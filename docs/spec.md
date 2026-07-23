@@ -1,6 +1,6 @@
 # Freelance ETH Escrow v1 规格说明
 
-- 状态：Draft，等待 review
+- 状态：已通过 review，作为 v1 实现基线
 - 范围：单订单、原生 ETH、一次性全额结算
 - 合约名：`FreelanceEscrow`
 - 金额单位：wei

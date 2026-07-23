@@ -67,14 +67,14 @@
 
 目标：先建立可信的初始状态和不可绕过的输入边界。
 
-- [ ] 新建 `contracts/FreelanceEscrow.sol`。
-- [ ] 添加 SPDX、固定 Solidity 编译器范围、`State` enum、custom errors、必要事件。
-- [ ] payable constructor 接收 Seller、Arbiter、三个期限参数和 ETH 存款。
-- [ ] 校验零金额、零地址、角色重复、过去期限和零时长。
-- [ ] 对不会改变的数据使用 `immutable`。
-- [ ] 部署后直接进入 `Funded`；记录 `depositAmount`，不从余额反推。
-- [ ] `receive()` 与 `fallback()` 拒绝部署后的直接付款。
-- [ ] 用 TypeScript + Viem 测试成功部署、每个无效参数、事件和初始状态。
+- [x] 新建 `contracts/FreelanceEscrow.sol`。
+- [x] 添加 SPDX、固定 Solidity 编译器范围、`State` enum、custom errors、必要事件。
+- [x] payable constructor 接收 Seller、Arbiter、三个期限参数和 ETH 存款。
+- [x] 校验零金额、零地址、角色重复、过去期限和零时长。
+- [x] 对不会改变的数据使用 `immutable`。
+- [x] 部署后直接进入 `Funded`；记录 `depositAmount`，不从余额反推。
+- [x] `receive()` 与 `fallback()` 拒绝部署后的直接付款。
+- [x] 用 TypeScript + Viem 测试成功部署、每个无效参数、事件和初始状态。
 
 完成标准：constructor 的每个分支都有测试；合约部署后无法通过普通转账增加业务存款。
 
