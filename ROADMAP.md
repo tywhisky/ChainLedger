@@ -136,12 +136,12 @@
 
 目标：学习现实代币交互，而不把 ETH 版本提前抽象复杂化。
 
-- [ ] 新建独立的 `ERC20FreelanceEscrow.sol`，先允许少量重复；测试稳定后再判断是否值得提取共享逻辑。
-- [ ] 使用 OpenZeppelin `IERC20` 与 `SafeERC20`，不得假设代币一定返回 `true`。
-- [ ] 采用 `approve → fund()`，并在实际到账后才进入 `Funded`。
-- [ ] 通过转账前后余额差校验到账数量；明确拒绝 fee-on-transfer / rebasing token。
-- [ ] 测试标准代币、不返回值代币、返回 false、转账手续费、余额不足和 allowance 不足。
-- [ ] 复用 Step 3–6 的状态机、超时、攻击和不变量场景。
+- [x] 新建独立的 `ERC20FreelanceEscrow.sol`，先允许少量重复；测试稳定后再判断是否值得提取共享逻辑。
+- [x] 使用 OpenZeppelin `IERC20` 与 `SafeERC20`，不得假设代币一定返回 `true`。
+- [x] 采用 `approve → fund()`，并在实际到账后才进入 `Funded`。
+- [x] 通过转账前后余额差校验到账数量；明确拒绝 fee-on-transfer / rebasing token。
+- [x] 测试标准代币、不返回值代币、返回 false、转账手续费、余额不足和 allowance 不足。
+- [x] 复用 Step 3–6 的状态机、超时、攻击和不变量场景。
 
 完成标准：支持边界写进 NatSpec 和 README；不支持的代币会明确 revert，不会悄悄造成坏账。
 
