@@ -70,6 +70,7 @@ contract FreelanceEscrow is ReentrancyGuard {
     event Withdrawal(address indexed account, uint256 amount);
 
     constructor(
+        address buyerAddress,
         address sellerAddress,
         address arbiterAddress,
         uint256 deliveryDeadlineTimestamp,
@@ -77,6 +78,9 @@ contract FreelanceEscrow is ReentrancyGuard {
         uint256 arbitrationPeriodSeconds
     ) payable {
         if (msg.value == 0) revert ZeroDeposit();
+        if (buyerAddress == address(0)) {
+            revert InvalidAddress(buyerAddress);
+        }
         if (sellerAddress == address(0)) {
             revert InvalidAddress(sellerAddress);
         }
@@ -84,12 +88,12 @@ contract FreelanceEscrow is ReentrancyGuard {
             revert InvalidAddress(arbiterAddress);
         }
         if (
-            msg.sender == sellerAddress ||
-            msg.sender == arbiterAddress ||
+            buyerAddress == sellerAddress ||
+            buyerAddress == arbiterAddress ||
             sellerAddress == arbiterAddress
         ) {
             revert RolesMustBeDistinct(
-                msg.sender,
+                buyerAddress,
                 sellerAddress,
                 arbiterAddress
             );
@@ -105,7 +109,7 @@ contract FreelanceEscrow is ReentrancyGuard {
             revert InvalidArbitrationPeriod();
         }
 
-        buyer = msg.sender;
+        buyer = buyerAddress;
         seller = sellerAddress;
         arbiter = arbiterAddress;
         depositAmount = msg.value;

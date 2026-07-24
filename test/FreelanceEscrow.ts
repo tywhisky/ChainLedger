@@ -19,6 +19,7 @@ describe("FreelanceEscrow", async function () {
     const deadline = BigInt(await networkHelpers.time.latest()) + 7n * DAY;
 
     return [
+      buyer.account.address,
       seller.account.address,
       arbiter.account.address,
       deadline,
@@ -33,7 +34,7 @@ describe("FreelanceEscrow", async function () {
       value: DEPOSIT,
     });
 
-    return { contract, deliveryDeadline: args[2] };
+    return { contract, deliveryDeadline: args[3] };
   }
 
   async function deliverEscrow() {
@@ -110,7 +111,7 @@ describe("FreelanceEscrow", async function () {
       getAddress(arbiter.account.address),
     );
     assert.equal(await contract.read.depositAmount(), DEPOSIT);
-    assert.equal(await contract.read.deliveryDeadline(), args[2]);
+    assert.equal(await contract.read.deliveryDeadline(), args[3]);
     assert.equal(await contract.read.reviewPeriod(), REVIEW_PERIOD);
     assert.equal(await contract.read.arbitrationPeriod(), ARBITRATION_PERIOD);
     assert.equal(await contract.read.state(), 0);
@@ -123,7 +124,7 @@ describe("FreelanceEscrow", async function () {
       seller: getAddress(seller.account.address),
       arbiter: getAddress(arbiter.account.address),
       amount: DEPOSIT,
-      deliveryDeadline: args[2],
+      deliveryDeadline: args[3],
     });
   });
 
@@ -135,14 +136,50 @@ describe("FreelanceEscrow", async function () {
     );
   });
 
-  it("rejects a zero seller address", async function () {
-    const [, arbiterAddress, deadline, reviewPeriod, arbitrationPeriod] =
-      await validArgs();
+  it("rejects a zero buyer address", async function () {
+    const [
+      ,
+      sellerAddress,
+      arbiterAddress,
+      deadline,
+      reviewPeriod,
+      arbitrationPeriod,
+    ] = await validArgs();
 
     await viem.assertions.revertWithCustomErrorWithArgs(
       viem.deployContract(
         "FreelanceEscrow",
         [
+          zeroAddress,
+          sellerAddress,
+          arbiterAddress,
+          deadline,
+          reviewPeriod,
+          arbitrationPeriod,
+        ],
+        { value: DEPOSIT },
+      ),
+      decoder,
+      "InvalidAddress",
+      [zeroAddress],
+    );
+  });
+
+  it("rejects a zero seller address", async function () {
+    const [
+      buyerAddress,
+      ,
+      arbiterAddress,
+      deadline,
+      reviewPeriod,
+      arbitrationPeriod,
+    ] = await validArgs();
+
+    await viem.assertions.revertWithCustomErrorWithArgs(
+      viem.deployContract(
+        "FreelanceEscrow",
+        [
+          buyerAddress,
           zeroAddress,
           arbiterAddress,
           deadline,
@@ -158,13 +195,20 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects a zero arbiter address", async function () {
-    const [sellerAddress, , deadline, reviewPeriod, arbitrationPeriod] =
-      await validArgs();
+    const [
+      buyerAddress,
+      sellerAddress,
+      ,
+      deadline,
+      reviewPeriod,
+      arbitrationPeriod,
+    ] = await validArgs();
 
     await viem.assertions.revertWithCustomErrorWithArgs(
       viem.deployContract(
         "FreelanceEscrow",
         [
+          buyerAddress,
           sellerAddress,
           zeroAddress,
           deadline,
@@ -180,7 +224,8 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects every duplicate role pairing", async function () {
-    const [, , deadline, reviewPeriod, arbitrationPeriod] = await validArgs();
+    const [, , , deadline, reviewPeriod, arbitrationPeriod] =
+      await validArgs();
     const buyerAddress = buyer.account.address;
     const sellerAddress = seller.account.address;
     const arbiterAddress = arbiter.account.address;
@@ -207,6 +252,7 @@ describe("FreelanceEscrow", async function () {
         viem.deployContract(
           "FreelanceEscrow",
           [
+            buyerAddress,
             sellerArg,
             arbiterArg,
             deadline,
@@ -223,7 +269,14 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects a past delivery deadline", async function () {
-    const [sellerAddress, arbiterAddress, , reviewPeriod, arbitrationPeriod] =
+    const [
+      buyerAddress,
+      sellerAddress,
+      arbiterAddress,
+      ,
+      reviewPeriod,
+      arbitrationPeriod,
+    ] =
       await validArgs();
     const deadline = BigInt(await networkHelpers.time.latest());
 
@@ -231,6 +284,7 @@ describe("FreelanceEscrow", async function () {
       viem.deployContract(
         "FreelanceEscrow",
         [
+          buyerAddress,
           sellerAddress,
           arbiterAddress,
           deadline,
@@ -246,7 +300,14 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects a delivery deadline equal to the deployment time", async function () {
-    const [sellerAddress, arbiterAddress, , reviewPeriod, arbitrationPeriod] =
+    const [
+      buyerAddress,
+      sellerAddress,
+      arbiterAddress,
+      ,
+      reviewPeriod,
+      arbitrationPeriod,
+    ] =
       await validArgs();
     const deadline = BigInt(await networkHelpers.time.latest()) + 1n;
     await networkHelpers.time.setNextBlockTimestamp(deadline);
@@ -255,6 +316,7 @@ describe("FreelanceEscrow", async function () {
       viem.deployContract(
         "FreelanceEscrow",
         [
+          buyerAddress,
           sellerAddress,
           arbiterAddress,
           deadline,
@@ -270,13 +332,27 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects a zero review period", async function () {
-    const [sellerAddress, arbiterAddress, deadline, , arbitrationPeriod] =
+    const [
+      buyerAddress,
+      sellerAddress,
+      arbiterAddress,
+      deadline,
+      ,
+      arbitrationPeriod,
+    ] =
       await validArgs();
 
     await viem.assertions.revertWithCustomError(
       viem.deployContract(
         "FreelanceEscrow",
-        [sellerAddress, arbiterAddress, deadline, 0n, arbitrationPeriod],
+        [
+          buyerAddress,
+          sellerAddress,
+          arbiterAddress,
+          deadline,
+          0n,
+          arbitrationPeriod,
+        ],
         { value: DEPOSIT },
       ),
       decoder,
@@ -285,13 +361,26 @@ describe("FreelanceEscrow", async function () {
   });
 
   it("rejects a zero arbitration period", async function () {
-    const [sellerAddress, arbiterAddress, deadline, reviewPeriod] =
+    const [
+      buyerAddress,
+      sellerAddress,
+      arbiterAddress,
+      deadline,
+      reviewPeriod,
+    ] =
       await validArgs();
 
     await viem.assertions.revertWithCustomError(
       viem.deployContract(
         "FreelanceEscrow",
-        [sellerAddress, arbiterAddress, deadline, reviewPeriod, 0n],
+        [
+          buyerAddress,
+          sellerAddress,
+          arbiterAddress,
+          deadline,
+          reviewPeriod,
+          0n,
+        ],
         { value: DEPOSIT },
       ),
       decoder,

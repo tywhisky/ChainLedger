@@ -180,6 +180,7 @@ contract FreelanceEscrowSecurityTest is Test {
         address seller
     ) private returns (FreelanceEscrow escrow) {
         escrow = new FreelanceEscrow{value: DEPOSIT}(
+            address(this),
             seller,
             ARBITER,
             block.timestamp + 7 days,
@@ -350,6 +351,7 @@ contract EscrowHandler is Test {
         seller = seller_;
         arbiter = arbiter_;
         escrow = new FreelanceEscrow{value: msg.value}(
+            address(this),
             seller_,
             arbiter_,
             block.timestamp + 7 days,
